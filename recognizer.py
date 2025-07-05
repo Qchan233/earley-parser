@@ -1,20 +1,26 @@
 from dataclasses import dataclass
 from ordered_set import OrderedSet
 from collections import defaultdict
+from utils import terminal
+from nullable import nullable
+
+# grammar = [
+#     ('S', 'S', '+', 'P'),
+#     ('S', 'P'),
+#     ('P', 'P', '*', 'F'),
+#     ('P', 'F'),
+#     ('F', '(', 'S', ')'),
+#     ('F', 'n'),
+# ]
 
 grammar = [
-    ('S', 'S', '+', 'P'),
-    ('S', 'P'),
-    ('P', 'P', '*', 'F'),
-    ('P', 'F'),
-    ('F', '(', 'S', ')'),
-    ('F', 'n'),
+    ('A', ),
+    ('A', 'B'),
+    ('B', 'A')
 ]
 
-S = ('n', '+', '(', 'n', '*', 'n', '+', 'n', ')')
+S = ()
 
-def terminal(symbol):
-    return not symbol.isupper()
 
 @dataclass
 class EarleyItem:
@@ -37,6 +43,7 @@ class EarleyRecognizer:
         self.grammar = grammar
         self.start_symbol = grammar[0][0]
         self.build_grammar()
+        self.nullable = nullable(grammar)
 
     def build_grammar(self):
         self.grammar_dict = defaultdict(list)
@@ -71,6 +78,8 @@ class EarleyRecognizer:
                 if not terminal(focus):
                     # predict
                     rules = self.grammar_dict[focus]
+                    if focus in self.nullable:
+                        self.chart[i].add(EarleyItem(item.rule, item.dot + 1, item.start, item.index))
                     for rule in rules:
                         self.chart[i].add(EarleyItem(rule, 1, i, self.grammar_to_index[rule]))
                 else:
@@ -83,7 +92,11 @@ class EarleyRecognizer:
             print(f'==== {i} ====')
             for item in self.chart[i]:
                 print(item)
-        
+
+        for item in self.chart[N]:
+            if item.completed() and item.rule[0] == self.start_symbol:
+                return True
+        return False
 
 if __name__ == "__main__":
     recognizer = EarleyRecognizer(grammar)
