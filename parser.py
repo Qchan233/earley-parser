@@ -4,14 +4,14 @@ from collections import defaultdict
 from utils import terminal
 from nullable import nullable
 
-# grammar = [
-#     ('S', 'S', '+', 'P'),
-#     ('S', 'P'),
-#     ('P', 'P', '*', 'F'),
-#     ('P', 'F'),
-#     ('F', '(', 'S', ')'),
-#     ('F', 'n'),
-# ]
+grammar = [
+    ('S', 'S', '+', 'P'),
+    ('S', 'P'),
+    ('P', 'P', '*', 'F'),
+    ('P', 'F'),
+    ('F', '(', 'S', ')'),
+    ('F', 'n'),
+]
 
 # grammar = [
 #     ('A', ),
@@ -19,12 +19,12 @@ from nullable import nullable
 #     ('B', 'A')
 # ]
 
-grammar = [
-    ('S', 'a'),
-]
+# grammar = [
+#     ('S', 'a'),
+# ]
 
-# S = ('n', '+', '(', 'n', '*', 'n', '+', 'n', ')')
-S = ('a')
+S = ('n', '+', '(', 'n', '*', 'n', '+', 'n', ')')
+# S = ('a')
 
 
 @dataclass
@@ -118,19 +118,76 @@ class EarleyParser:
     
     def parse(self, input_string):
         self.build_chart(input_string)
+        N = len(input_string)
         
-        states = [[] for _ in range(len(input_string) + 1)]
+        finished_states = [[] for _ in range(N + 1)]
         for end_pos, state_set in enumerate(self.chart):
             for item in state_set:
                 if item.completed():
                     start_pos = item.start
-                    states[start_pos].append(FinishedItem(item.rule, end_pos, item.index))
+                    finished_states[start_pos].append(FinishedItem(item.rule, end_pos, item.index))
 
         print('finished items:')
-        for i, state_set in enumerate(states):
+        for i, state_set in enumerate(finished_states):
             print(f'==== {i} ====')
             for item in state_set:
                 print(item)
+        
+        def search_path(start, end, item):
+            # current position in the string
+            current = start
+
+            end = item.end
+            rule = item.rule
+            _, rhs = rule[0], rule[1:]
+            nrhs = len(rhs)
+
+            path = []
+
+            def _dfs(sym_idx):
+                nonlocal current
+                # the idx in rhs
+                if sym_idx == nrhs:
+                    if current == end:
+                        # success
+                        raise RuntimeError
+                    
+                    return 
+
+                sym = rhs[sym_idx]
+                if terminal(sym):
+                    # the search exceed the end, failure
+                    if current >= end:
+                        return
+                    if input_string[current] == sym:
+                        current += 1
+                        path.append(sym)
+                        _dfs(sym_idx + 1)
+                        current -= 1
+                        return
+                    else:
+                        return
+
+                prev = current
+                for item in finished_states[prev]:
+                    if item.rule[0] == sym:
+                        current = item.end
+                        path.append(item)
+                        _dfs(sym_idx + 1)
+                        path.pop()
+                        current = prev
+            try:
+                _dfs(0)
+            except:
+                path_str = [str(item) for item in path]
+                print(f"Path: {' | '.join(path_str)}")
+
+            return path
+
+
+        for item in finished_states[0]:
+            if item.rule[0] == self.start_symbol and item.end == N:
+                search_path(0, N, item)
 
 
 if __name__ == "__main__":
