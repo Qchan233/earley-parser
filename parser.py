@@ -46,6 +46,7 @@ class EarleyItem:
 @dataclass
 class FinishedItem:
     rule: tuple
+    start: int
     end: int
     index: int
 
@@ -125,7 +126,7 @@ class EarleyParser:
             for item in state_set:
                 if item.completed():
                     start_pos = item.start
-                    finished_states[start_pos].append(FinishedItem(item.rule, end_pos, item.index))
+                    finished_states[start_pos].append(FinishedItem(item.rule, start_pos, end_pos, item.index))
 
         print('finished items:')
         for i, state_set in enumerate(finished_states):
@@ -133,9 +134,9 @@ class EarleyParser:
             for item in state_set:
                 print(item)
         
-        def search_path(start, end, item):
+        def search_path(item):
             # current position in the string
-            current = start
+            current = item.start
 
             end = item.end
             rule = item.rule
@@ -172,22 +173,40 @@ class EarleyParser:
                 for item in finished_states[prev]:
                     if item.rule[0] == sym:
                         current = item.end
-                        path.append(item)
+                        path.append([item, None])
                         _dfs(sym_idx + 1)
                         path.pop()
                         current = prev
             try:
                 _dfs(0)
             except:
-                path_str = [str(item) for item in path]
-                print(f"Path: {' | '.join(path_str)}")
+                return path
 
-            return path
+            raise RuntimeError("Unable to find path for item")
 
-
+        root = None
         for item in finished_states[0]:
             if item.rule[0] == self.start_symbol and item.end == N:
-                search_path(0, N, item)
+                root = [item, None]
+                break
+        
+        assert root
+        work_set = [root]
+        
+        while work_set:
+            node = work_set.pop()
+            item = node[0]
+            path = search_path(item)
+
+            path_str = [str(item[0]) if isinstance(item, list) else item for item in path]
+            print(f"Path: {' | '.join(path_str)}")
+
+            for edge in path:
+                if isinstance(edge, list):
+                    work_set.append(edge)
+
+            node[1] = path
+        
 
 
 if __name__ == "__main__":
